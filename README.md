@@ -1,5 +1,10 @@
 # MADRAS
-My Arm Digital Realtime Audio System is a real-time effects processing system with a REST API.
+My Arm Digital Realtime Audio System is a real-time effects processing system with a REST API. Python CLI and Web interfaces are provided.
+
+![](http://liamfraser.co.uk/madras/webiface.png)
+
+## Audio Examples
+http://liamfraser.co.uk/madras/
 
 ## License
 GPLv3
