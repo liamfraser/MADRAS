@@ -1,0 +1,120 @@
+(Accurate as of 3rd Dec 2015)
+
+Get latest Raspberry Pi 2 arch rootfs from
+
+http://archlinuxarm.org/platforms/armv7/broadcom/raspberry-pi-2
+
+Format an SD card as described in the installation section:
+
+sudo su
+fdisk /dev/mmcblk0 ...
+
+[root@liam-laptop liam]# parted /dev/mmcblk0 print
+Model: SD SD08G (sd/mmc)
+Disk /dev/mmcblk0: 7969MB
+Sector size (logical/physical): 512B/512B
+Partition Table: msdos
+Disk Flags: 
+
+Number  Start   End     Size    Type     File system  Flags
+ 1      1049kB  106MB   105MB   primary  fat16        lba
+ 2      106MB   7969MB  7863MB  primary
+
+
+root@liam-laptop liam]# mkfs.vfat /dev/mmcblk0p1 
+mkfs.fat 3.0.28 (2015-05-16)
+[root@liam-laptop liam]# mkfs.ext4 /dev/mmcblk0p2
+
+cd /tmp
+wget http://archlinuxarm.org/os/ArchLinuxARM-rpi-2-latest.tar.gz
+mkdir root
+mount /dev/mmcblk0p2 root/
+cd root/
+mkdir boot
+mount /dev/mmcblk0p1 boot/
+cd ..
+bsdtar -xpf ArchLinuxARM-rpi-2-latest.tar.gz -C root
+sync
+umount root/boot
+umount root
+
+Now we have a normal arch image compiled with an ARMv7 instruction set
+Now to make it work with the Cirrus Logic audio card we have to compile a kernel
+
+First we'll boot up and update the package index, set the hostname and a couple
+of other bits
+pacman -Syy; pacman -S vim htop screen; pacman -Syu
+# Install requirements for compiling kernel
+pacman -S base-devel git bc
+
+https://github.com/CirrusLogic/rpi-linux/wiki/Building-the-code
+with some of
+https://www.raspberrypi.org/documentation/linux/kernel/building.md
+and http://www.element14.com/community/thread/43711/l/driver-fixes-and-updates-to-kernel-31816-and-405
+Compiling a kernel that supports the cirrus logic audio card:
+
+mkdir cirrus
+cd cirrus
+screen -S kbuild
+git clone --depth=1 https://github.com/HiassofT/rpi-linux.git
+cd rpi-linux
+make bcm2709_defconfig
+
+menuconfig and remove power saving / cpu frequency scaling for max performance
+might as well as we're building a kernel anyway
+
+make menuconfig
+CPU Power Management -> CPU Frequency Scaling, [Space to untick], Save, Exit.
+
+# Start the kernel build
+make -j4 zImage modules dtbs
+make modules_install
+cp arch/arm/boot/dts/*.dtb /boot/
+cp arch/arm/boot/dts/overlays/*.dtb* /boot/overlays/
+cp arch/arm/boot/dts/overlays/README /boot/overlays/
+mv /boot/kernel7.img /boot/kernel7.img.arch
+scripts/mkknlimg arch/arm/boot/zImage /boot/kernel7.img
+echo 'dtoverlay=rpi-cirrus-wm5102-overlay' >> /boot/config.txt
+echo 'dtoverlay=i2s-mmap' >> /boot/config.txt
+
+# Disable built in sound card
+vim /etc/modules-load.d/raspberrypi.conf
+comment out 'snd-bcm2835'
+
+vim /etc/modprobe.d/cirrus.conf:
+softdep arizona-spi pre: arizona-ldo1
+softdep spi-bcm2708 pre: fixed
+softdep spi-bcm2835 pre: fixed
+softdep snd-soc-wm8804-i2c pre: snd-soc-rpi-wsp-preinit
+softdep snd-soc-rpi-wsp pre: snd-soc-wm8804-i2c
+
+
+# Get configure scripts for sound card
+cd /root/cirrus
+git clone --depth 1 https://github.com/CirrusLogic/wiki-content.git
+mv wiki-content/scripts .
+rm -r wiki-content
+chmod +x scripts/*
+
+# Reboot and hope it works
+sync
+reboot
+
+pacman -S alsa-utils jack2
+[root@madras scripts]# aplay -l
+**** List of PLAYBACK Hardware Devices ****
+card 0: sndrpiwsp [snd_rpi_wsp], device 0: WM5102 AiFi wm5102-aif1-0 []
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+
+[root@madras ~]# cirrus/scripts/Playback_to_Lineout.sh
+[root@madras ~]# cirrus/scripts/Record_from_lineIn.sh
+jackd -P 70 -p16 -t 2000 -d alsa -p 64 -n 2 -r 44100
+
+[root@madras ~]# jack_lsp
+system:capture_1
+system:capture_2
+system:playback_1
+system:playback_2
+
+[root@madras ~]# jack_connect system:capture_1 system:playback_1

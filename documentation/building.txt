@@ -1,0 +1,7 @@
+pacman -S cmake libmicrohttpd
+
+Compile & Install this too
+https://github.com/etr/libhttpserver
+
+# Need to do tihs before you can link properly
+echo '/usr/local/lib' > /etc/ld.so.conf.d/01-usr-local-lib.conf

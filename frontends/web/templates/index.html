@@ -1,0 +1,82 @@
+{% extends "bootstrap/base.html" %}
+{% block title %}MADRAS{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <a href="/"><h1>My ARM Digital Realtime Audio System</h1></a>
+  </div>
+
+  <div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Add a plugin:</h3>
+      </div>
+      <div class="panel-body">
+        <div class="list-group">
+          {% for p in plugins %}
+          <a href="/add/{{p}}" class="list-group-item">{{p}}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Plugin Chain:</h3>
+      </div>
+      <div class="panel-body">
+          {% for p in plugin_chain %}
+            <div class="btn-group btn-group-justified">
+            <a href="/edit/{{p.0}}" class="btn btn-primary">{{p.0}}: {{p.1}}</a>
+            <a href="/delete/{{p.0}}" class="btn btn-primary">
+              <span class="glyphicon glyphicon-trash"></span>
+            </a>
+            </div>  
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        {% if editing %}
+        <h3 class="panel-title">Plugin Settings ({{editing}} - {{settings.type}}):</h3>
+        {% else %}
+        <h3 class="panel-title">Plugin Settings:</h3>
+        {% endif %}
+      </div>
+      <div class="panel-body">
+        {% if editing %}
+        <p>{{settings.description}}</p>
+        <form action="/update" method="POST">
+        <input type="hidden" name="_plugin_id" value="{{editing}}">
+        {% endif %}
+        
+        {% for p in settings.parameters %}
+          <div class="form-group">
+            <div class="panel panel-success">
+              <div class="panel-heading">
+                <h3 class="panel-title">{{p}}</h3>
+              </div>
+              <div class="panel-body">
+              {{settings.parameters[p]["description"]}}
+              <input type="text" class="form-control" name="{{p}}" value="{{settings.parameters[p]["value"]}}">
+             </div>
+            </div>
+          </div>
+        {% endfor %}
+
+        {% if editing %}
+        <button type="submit" class="btn btn-default">Submit</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
